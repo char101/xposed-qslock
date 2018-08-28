@@ -1,0 +1,19 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.github.char101.qslock">
+
+    <application
+        android:allowBackup="true"
+        android:label="NoQSInLockScreen"
+        android:supportsRtl="true"
+        >
+        <meta-data
+            android:name="xposedmodule"
+            android:value="true" />
+        <meta-data
+            android:name="xposeddescription"
+            android:value="Disable quick settings in the lock screen" />
+        <meta-data
+            android:name="xposedminversion"
+            android:value="89" />
+    </application>
+</manifest>
