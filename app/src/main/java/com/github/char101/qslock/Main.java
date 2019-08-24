@@ -5,7 +5,9 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedHelpers;
+import android.app.AndroidAppHelper;
 
+import android.content.Context;
 import android.util.Log;
 
 public class Main implements IXposedHookLoadPackage {
@@ -30,16 +32,6 @@ public class Main implements IXposedHookLoadPackage {
     private static final int DISABLE2_ROTATE_SUGGESTIONS = 1 << 4;
     private static final int DISABLE2_NONE = 0x00000000;
 
-    public int getProp(Class<?> SystemProperties, String name, int defaultValue) {
-        String val = (String) XposedHelpers.callStaticMethod(SystemProperties, "get", new Class<?>[]{String.class}, name);
-        try {
-            return val.equals("") ? defaultValue : Integer.parseInt(val);
-        } catch (NumberFormatException ex) {
-            Log.e(TAG, "invalid value for " + name + ": " + val);
-            return defaultValue;
-        }
-    }
-
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
         if (!lpparam.packageName.equals("com.android.systemui")) {
             return;
@@ -47,33 +39,39 @@ public class Main implements IXposedHookLoadPackage {
 
         XposedBridge.log(TAG + ": started");
 
-        final Class<?> SystemProperties = XposedHelpers.findClass("android.os.SystemProperties", null);
-
-        XposedHelpers.findAndHookMethod("com.android.systemui.keyguard.KeyguardViewMediator", lpparam.classLoader, "adjustStatusBarLocked", new XC_MethodHook() {
+        XposedHelpers.findAndHookMethod("com.android.keyguard.KeyguardDisplayManager", lpparam.classLoader, "show", new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                Object mStatusBarManager = XposedHelpers.getObjectField(param.thisObject, "mStatusBarManager");
-                if (mStatusBarManager != null) {
-                    boolean mShowing = (boolean) XposedHelpers.getBooleanField(param.thisObject, "mShowing");
-                    final int mode2 = getProp(SystemProperties,"persist.qslock.mode2", DISABLE2_QUICK_SETTINGS);
-                    if (mShowing) {
-                        final int mode = getProp(SystemProperties,"persist.qslock.mode", 0);
-                        if (mode > 0) {
-                            Log.i(TAG, "disable: " + mode);
-                            XposedHelpers.callMethod(mStatusBarManager, "disable", new Class<?>[]{int.class}, mode);
-                        }
-                        if (mode2 > 0) {
-                            Log.i(TAG, "disable2: " + mode2);
-                            XposedHelpers.callMethod(mStatusBarManager, "disable2", new Class<?>[]{int.class}, mode2);
-                        }
-                    } else {
-                        if (mode2 > 0) {
-                            XposedHelpers.callMethod(mStatusBarManager, "disable2", new Class<?>[]{int.class}, DISABLE2_NONE);
-                        }
-                    }
-                } else {
-                    Log.e(TAG, "mStatusBarManager is null");
+                Log.i(TAG, "show");
+                Context context = (Context) AndroidAppHelper.currentApplication();
+                if (context == null) {
+                    Log.e(TAG, "context is null");
+                    return;
                 }
+                Object statusBarManager = context.getSystemService("statusbar");
+                if (statusBarManager == null) {
+                    Log.e(TAG, "statusBarManager is null");
+                    return;
+                }
+                XposedHelpers.callMethod(statusBarManager, "disable2", new Class<?>[]{Integer.class}, DISABLE2_QUICK_SETTINGS | DISABLE2_NOTIFICATION_SHADE);
+            }
+        });
+
+        XposedHelpers.findAndHookMethod("com.android.keyguard.KeyguardDisplayManager", lpparam.classLoader, "hide", new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                Log.i(TAG, "hide");
+                Context context = (Context) AndroidAppHelper.currentApplication();
+                if (context == null) {
+                    Log.e(TAG, "context is null");
+                    return;
+                }
+                Object statusBarManager = context.getSystemService("statusbar");
+                if (statusBarManager == null) {
+                    Log.e(TAG, "statusBarManager is null");
+                    return;
+                }
+                XposedHelpers.callMethod(statusBarManager, "disable2", new Class<?>[]{Integer.class}, DISABLE2_NONE);
             }
         });
     }
