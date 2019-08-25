@@ -14,6 +14,6 @@
             android:value="Disable quick settings in the lock screen" />
         <meta-data
             android:name="xposedminversion"
-            android:value="89" />
+            android:value="82" />
     </application>
 </manifest>
